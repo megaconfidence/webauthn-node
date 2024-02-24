@@ -1,0 +1,21 @@
+{
+  "name": "webauthn",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@simplewebauthn/server": "^9.0.3",
+    "express": "^4.18.2",
+    "express-session": "^1.18.0",
+    "memorystore": "^1.6.7",
+    "nanoid": "^3.3.7",
+    "node-localstorage": "^3.0.5",
+    "nodemon": "^3.1.0"
+  }
+}
