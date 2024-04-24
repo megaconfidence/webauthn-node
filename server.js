@@ -7,12 +7,7 @@ const {
   verifyAuthenticationResponse,
   generateAuthenticationOptions,
 } = require("@simplewebauthn/server");
-const {
-  isoBase64URL,
-  isoUint8Array,
-} = require("@simplewebauthn/server/helpers");
 
-const { nanoid } = require("nanoid");
 const memoryStore = require("memorystore");
 const { LocalStorage } = require("node-localstorage");
 
@@ -46,66 +41,71 @@ const expectedOrigin = `${origin}:${port}`;
 app.post("/register", async (req, res) => {
   const uname = req.body.username;
   const user = JSON.parse(localStorage.getItem(uname)) || {
-    authenticators: [],
-    id: nanoid(5),
+    passKeys: [],
     username: uname,
   };
 
-  const { id: userID, username: userName, authenticators } = user;
+  const { username: userName, passKeys } = user;
 
   const opts = {
     rpID,
     rpName,
-    userID,
     userName,
-    timeout: 60000,
     attestationType: "none",
+    supportedAlgorithmIDs: [-7, -257],
     authenticatorSelection: {
       residentKey: "discouraged",
-      userVerification: "preferred",
     },
-    supportedAlgorithmIDs: [-7, -257],
-    excludeCredentials: authenticators?.map((dev) => ({
-      type: "public-key",
-      id: dev.credentialID,
-      transports: dev.transports,
+    excludeCredentials: passKeys?.map((key) => ({
+      id: key.id,
+      transports: key.transports,
     })),
   };
   const options = await generateRegistrationOptions(opts);
 
-  req.session.challenge = { user, challenge: options.challenge };
+  req.session.challenge = { user, options };
   res.send(options);
 });
 
 app.post("/register/complete", async (req, res) => {
   const response = req.body;
-  const { challenge: expectedChallenge, user } = req.session.challenge;
+  const { options, user } = req.session.challenge;
 
   const opts = {
     response,
     expectedOrigin,
     expectedRPID: rpID,
-    requireUserVerification: false,
-    expectedChallenge: `${expectedChallenge}`,
+    expectedChallenge: options.challenge,
   };
-  let verification = await verifyRegistrationResponse(opts).catch((error) => {
+
+  let verification;
+  try {
+    verification = await verifyRegistrationResponse(opts);
+  } catch (error) {
     console.error(error);
     return res.status(400).send({ error: error.message });
-  });
+  }
 
   const { verified, registrationInfo } = verification;
 
   if (verified && registrationInfo) {
-    const { credentialPublicKey, credentialID, counter } = registrationInfo;
+    const {
+      counter,
+      credentialID,
+      credentialBackedUp,
+      credentialPublicKey,
+      credentialDeviceType,
+    } = registrationInfo;
 
-    const authenticator = user.authenticators.find((authenticator) =>
-      isoUint8Array.areEqual(authenticator.credentialID, credentialID)
-    );
+    const passKey = user.passKeys.find((key) => key.id === credentialID);
 
-    if (!authenticator) {
-      user.authenticators.push({
+    if (!passKey) {
+      user.passKeys.push({
         counter,
-        credentialID: Array.from(credentialID),
+        id: credentialID,
+        backedUp: credentialBackedUp,
+        webAuthnUserID: options.user.id,
+        deviceType: credentialDeviceType,
         transports: response.response.transports,
         credentialPublicKey: Array.from(credentialPublicKey),
       });
@@ -122,53 +122,50 @@ app.post("/login", async (req, res) => {
 
   const opts = {
     rpID,
-    timeout: 60000,
-    userVerification: "preferred",
-    allowCredentials: user.authenticators.map((dev) => ({
-      type: "public-key",
-      id: dev.credentialID,
-      transports: dev.transports,
+    allowCredentials: user?.passKeys.map((key) => ({
+      id: key.id,
+      transports: key.transports,
     })),
   };
   const options = await generateAuthenticationOptions(opts);
 
-  req.session.challenge = { user, challenge: options.challenge };
+  req.session.challenge = { user, options };
   res.send(options);
 });
 
 app.post("/login/complete", async (req, res) => {
-  const { challenge: expectedChallenge, user } = req.session.challenge;
+  const { options, user } = req.session.challenge;
   const body = req.body;
 
-  const bodyCredIDBuffer = isoBase64URL.toBuffer(body.rawId);
-  const authenticator = user.authenticators.find((authenticator) =>
-    isoUint8Array.areEqual(authenticator.credentialID, bodyCredIDBuffer)
-  );
-  if (!authenticator) {
-    return res.status(400).send({ error: "Authenticator is not registered" });
+  const passKey = user.passKeys.find((key) => key.id === body.id);
+  if (!passKey) {
+    return res
+      .status(400)
+      .send({ error: `Could not find passkey ${body.id} for user ${user.id}` });
   }
 
   const opts = {
-    authenticator,
+    authenticator: passKey,
     response: body,
     expectedOrigin,
     expectedRPID: rpID,
-    requireUserVerification: false,
-    expectedChallenge: `${expectedChallenge}`,
+    expectedChallenge: options.challenge,
   };
-  const verification = await verifyAuthenticationResponse(opts).catch(
-    (error) => {
-      console.error(error);
-      return res.status(400).send({ error: error.message });
-    }
-  );
+
+  let verification;
+  try {
+    verification = await verifyAuthenticationResponse(opts);
+  } catch (error) {
+    console.error(error);
+    return res.status(400).send({ error: error.message });
+  }
 
   const { verified, authenticationInfo } = verification;
 
   if (verified) {
-    authenticator.counter = authenticationInfo.newCounter;
-    user.authenticators = user.authenticators.map((i) =>
-      i.id == authenticator.id ? authenticator : i
+    passKey.counter = authenticationInfo.newCounter;
+    user.passKeys = user.passKeys.map((i) =>
+      i.id == passKey.id ? passKey : i
     );
     localStorage.setItem(user.username, JSON.stringify(user));
   }
