@@ -75,6 +75,7 @@ app.post("/register/complete", async (req, res) => {
     response,
     expectedOrigin,
     expectedRPID: rpID,
+    requireUserVerification: false, //Enforce user verification by the authenticator
     expectedChallenge: options.challenge,
   };
 
@@ -145,10 +146,11 @@ app.post("/login/complete", async (req, res) => {
   }
 
   const opts = {
-    authenticator: passKey,
     response: body,
     expectedOrigin,
     expectedRPID: rpID,
+    authenticator: passKey,
+    requireUserVerification: false,
     expectedChallenge: options.challenge,
   };
 
