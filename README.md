@@ -20,3 +20,7 @@ cd webauthn-node
 npm i
 npm start
 ```
+
+## Reset Chrome Passkeys
+
+Vist this url on Chrome and delete unused passkeys from the list [chrome://settings/passkeys](chrome://settings/passkeys)
