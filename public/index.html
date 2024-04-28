@@ -1,19 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>WebAuthn</title>
-    <script src="https://unpkg.com/@simplewebauthn/browser@10.0.0/dist/bundle/index.umd.min.js"></script>
-    <!-- <link rel="stylesheet" href="style.css" /> -->
-  </head>
-  <body>
-    <p class="message"></p>
-    <label for="username">Username</label>
-    <input type="text" class="username" name="username" />
-    <button class="register">Register</button>
-    <button class="login">Log In</button>
-    <script src="index.js"></script>
-  </body>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta http-equiv="X-UA-Compatible" content="ie=edge" />
+		<title>WebAuthn</title>
+		<script src="https://unpkg.com/@simplewebauthn/browser@10.0.0/dist/bundle/index.umd.min.js"></script>
+		<link rel="stylesheet" href="style.css" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;700&display=swap" rel="stylesheet" />
+	</head>
+	<body>
+		<div class="container">
+			<h1>WebAuthn</h1>
+			<input type="text" class="username" name="username" placeholder="Username" />
+			<div class="btn-row">
+				<button class="register">Register</button>
+				<button class="login">Log In</button>
+			</div>
+			<p class="message"></p>
+		</div>
+		<script src="index.js"></script>
+	</body>
 </html>
